@@ -1,38 +1,46 @@
 pipeline {
     agent any
 
-    environment {
-        EC2_USER = 'ec2-user'
-        EC2_IP = '52.11.221.148'                  // Replace with your EC2 public IP
-        PEM_PATH = '/var/lib/jenkins/.ssh/Devops.pem'  // Path to your PEM file on Jenkins server
-        WAR_NAME = 'registration-webapp-1.0-SNAPSHOT.war'  // Your WAR file name
-        WAR_PATH = "target/${WAR_NAME}"
-    }
-
     stages {
-        stage('Build') {
+        stage('Checkout') {
             steps {
-                echo "Building the WAR file..."
+                git 'https://github.com/ChandanaLD/Devops.git'
+            }
+        }
+
+        stage('Build WAR') {
+            steps {
                 sh 'mvn clean package'
             }
         }
 
-        stage('Deploy') {
+        stage('Transfer WAR to EC2') {
             steps {
-                echo "Deploying WAR to EC2 Tomcat Docker container..."
+                // Make sure the path and file name match the Jenkins build output
+                sh '''
+                scp -i /var/lib/jenkins/.ssh/Devops.pem target/registration-webapp-1.0-SNAPSHOT.war ec2-user@52.11.221.148:/tmp/
+                '''
+            }
+        }
 
-                // Copy WAR file to EC2 /tmp
-                sh """
-                scp -i ${PEM_PATH} ${WAR_PATH} ${EC2_USER}@${EC2_IP}:/tmp/
-                """
-
-                // SSH to EC2, move WAR inside tomcat webapps, restart container
-                sh """
-                ssh -i ${PEM_PATH} ${EC2_USER}@${EC2_IP} << EOF
-                sudo mv /tmp/${WAR_NAME} /usr/local/tomcat/webapps/
-                sudo docker restart tomcat-container
-                EOF
-                """
+        stage('Deploy on Docker Tomcat') {
+            steps {
+                sshPublisher(publishers: [
+                    sshPublisherDesc(
+                        configName: 'dockerhost',
+                        transfers: [
+                            sshTransfer(
+                                sourceFiles: 'target/registration-webapp-1.0-SNAPSHOT.war',
+                                removePrefix: 'target',
+                                remoteDirectory: '/tmp'
+                            )
+                        ],
+                        execCommand: '''
+                        sudo docker cp /tmp/registration-webapp-1.0-SNAPSHOT.war tomcat-container:/usr/local/tomcat/webapps/
+                        sudo docker restart tomcat-container
+                        '''
+                    )
+                ])
             }
         }
     }
