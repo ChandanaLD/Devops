@@ -8,29 +8,35 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build WAR') {
             steps {
-                bat 'mvn clean package'
+                sh 'mvn clean package'
             }
         }
 
-        stage('Deploy') {
+        stage('Transfer WAR to EC2') {
+            steps {
+                sh '''
+                scp -i "C:\Users\chand\Documents\Devops.pem" target/registration.war ec2-user@52.11.221.148:/tmp/
+                '''
+            }
+        }
+
+        stage('Deploy on Docker Tomcat') {
             steps {
                 sshPublisher(publishers: [
                     sshPublisherDesc(
                         configName: 'dockerhost',
                         transfers: [
-                            // Copy WAR file from Jenkins workspace or local machine to Docker host /tmp
                             sshTransfer(
-                                sourceFiles: 'target/webapps.war',  // relative to Jenkins workspace after build
-                                remoteDirectory: '/tmp',
-                                removePrefix: 'target'
+                                sourceFiles: 'target/registration.war',
+                                removePrefix: 'target',
+                                remoteDirectory: '/tmp'
                             )
                         ],
                         execCommand: '''
-                            docker cp /tmp/webapps.war tomcat-container:/usr/local/tomcat/webapps/
-                            docker exec tomcat-container catalina.sh stop
-                            docker exec tomcat-container catalina.sh start
+                        docker cp /tmp/registration.war tomcat-container:/usr/local/tomcat/webapps/
+                        docker restart tomcat-container
                         '''
                     )
                 ])
