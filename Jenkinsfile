@@ -16,9 +16,8 @@ pipeline {
 
         stage('Transfer WAR to EC2') {
             steps {
-                // Make sure the path and file name match the Jenkins build output
                 sh '''
-                scp -i /var/lib/jenkins/.ssh/Devops.pem http://44.243.14.81:8080/job/BuildandDeployonContainer/ws/target/registration-webapp-1.0-SNAPSHOT.war ec2-user@52.11.221.148:/tmp/
+                scp -i /var/lib/jenkins/.ssh/Devops.pem target/registration-webapp-1.0-SNAPSHOT.war ec2-user@52.11.221.148:/tmp/
                 '''
             }
         }
@@ -30,14 +29,15 @@ pipeline {
                         configName: 'dockerhost',
                         transfers: [
                             sshTransfer(
-                                sourceFiles: 'http://44.243.14.81:8080/job/BuildandDeployonContainer/ws/target/registration-webapp-1.0-SNAPSHOT.war',
-                                removePrefix: 'http://44.243.14.81:8080/job/BuildandDeployonContainer/ws/target',
+                                sourceFiles: 'target/registration-webapp-1.0-SNAPSHOT.war',
+                                removePrefix: 'target',
                                 remoteDirectory: '/tmp'
                             )
                         ],
                         execCommand: '''
-                        sudo docker cp /tmp/registration-webapp-1.0-SNAPSHOT.war tomcat-container:/usr/local/tomcat/webapps/
-                        sudo docker restart tomcat-container
+                            sudo docker cp /tmp/registration-webapp-1.0-SNAPSHOT.war tomcat-container:/usr/local/tomcat/webapps/
+                            sudo docker exec tomcat-container rm -rf /usr/local/tomcat/webapps/registration-webapp-1.0-SNAPSHOT
+                            sudo docker restart tomcat-container
                         '''
                     )
                 ])
