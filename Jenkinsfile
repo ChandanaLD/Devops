@@ -16,18 +16,22 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                // Use SSH steps to copy the WAR to your remote Tomcat server
                 sshPublisher(publishers: [
                     sshPublisherDesc(
-                        configName: 'dockerhost', // your SSH config name in Jenkins
+                        configName: 'dockerhost',
                         transfers: [
+                            // Copy WAR file from Jenkins workspace or local machine to Docker host /tmp
                             sshTransfer(
-                                sourceFiles: 'target/webapps.war',
-                                removePrefix: 'target',
-                                remoteDirectory: '/path/to/tomcat/webapps',
-                                execCommand: 'systemctl restart tomcat'  // or restart your tomcat service
+                                sourceFiles: 'target/webapps.war',  // relative to Jenkins workspace after build
+                                remoteDirectory: '/tmp',
+                                removePrefix: 'target'
                             )
-                        ]
+                        ],
+                        execCommand: '''
+                            docker cp /tmp/webapps.war tomcat-container:/usr/local/tomcat/webapps/
+                            docker exec tomcat-container catalina.sh stop
+                            docker exec tomcat-container catalina.sh start
+                        '''
                     )
                 ])
             }
