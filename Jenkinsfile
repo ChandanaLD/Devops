@@ -8,11 +8,15 @@ pipeline {
             }
         }
 
-        stage('Build WAR') {
-            steps {
-                sh 'mvn clean package'
-            }
-        }
+        stage('Build with Maven') {
+  steps {
+    sh '''
+      export PATH=/opt/apache-maven-3.9.1/bin:$PATH
+      mvn clean package
+    '''
+  }
+}
+
 
         stage('Transfer WAR to EC2') {
             steps {
