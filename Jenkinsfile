@@ -35,7 +35,7 @@ pipeline {
 
     stage('Deploy on Dockerhost') {
       steps {
-        sshagent (credentials: ['dockerhost-ssh-key']) {
+        sshagent (credentials: ['ec2-ssh-key']) {
           sh """
           ssh -o StrictHostKeyChecking=no $DOCKER_HOST '
             docker pull $DOCKER_IMAGE &&
