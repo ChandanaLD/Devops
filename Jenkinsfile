@@ -20,12 +20,18 @@ pipeline {
     }
 
     stage('Build & Push Docker Image') {
-      steps {
-        sh 'docker build -t $DOCKER_IMAGE .'
-        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
-        sh 'docker push $DOCKER_IMAGE'
-      }
+  steps {
+    withCredentials([
+      string(credentialsId: 'DOCKER_USERNAME', variable: 'DOCKER_USERNAME'),
+      string(credentialsId: 'DOCKER_PASSWORD', variable: 'DOCKER_PASSWORD')
+    ]) {
+      sh 'docker build -t $DOCKER_IMAGE .'
+      sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+      sh 'docker push $DOCKER_IMAGE'
     }
+  }
+}
+
 
     stage('Deploy on Dockerhost') {
       steps {
