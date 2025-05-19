@@ -1,48 +1,45 @@
 pipeline {
-    agent any
+  agent any
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/ChandanaLD/Devops.git'
-            }
-        }
-
-        stage('Build with Maven') {
-  steps {
-    sh '''
-      export PATH=/opt/apache-maven-3.9.1/bin:$PATH
-      mvn clean package
-    '''
+  environment {
+    DOCKER_IMAGE = "chandanald274/regapp"
+    DOCKER_HOST = "ec2-user@52.11.221.148"
   }
-}
 
-
-        stage('Transfer WAR to EC2') {
-            steps {
-                sh '''
-                scp -i /var/lib/jenkins/.ssh/Devops.pem target/registration-webapp-1.0-SNAPSHOT.war ec2-user@52.11.221.148:/tmp/
-                '''
-            }
-        }
-
-        stage('Deploy on Docker Tomcat') {
-            steps {
-                stage('Deploy on Docker Tomcat') {
-    steps {
-        sh '''
-        scp -i /var/lib/jenkins/.ssh/Devops.pem target/registration-webapp-1.0-SNAPSHOT.war ec2-user@52.11.221.148:/tmp/
-
-        ssh -i /var/lib/jenkins/.ssh/Devops.pem ec2-user@52.11.221.148 << EOF
-            sudo docker cp /tmp/registration-webapp-1.0-SNAPSHOT.war tomcat-container:/usr/local/tomcat/webapps/
-            sudo docker exec tomcat-container rm -rf /usr/local/tomcat/webapps/registration-webapp-1.0-SNAPSHOT
-            sudo docker restart tomcat-container
-        EOF
-        '''
+  stages {
+    stage('Checkout') {
+      steps {
+        git 'https://github.com/ChandanaLD/Devops.git'
+      }
     }
-}
 
-            }
-        }
+    stage('Build WAR') {
+      steps {
+        sh 'mvn clean package'
+      }
     }
+
+    stage('Build & Push Docker Image') {
+      steps {
+        sh 'docker build -t $DOCKER_IMAGE .'
+        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+        sh 'docker push $DOCKER_IMAGE'
+      }
+    }
+
+    stage('Deploy on Dockerhost') {
+      steps {
+        sshagent (credentials: ['dockerhost-ssh-key']) {
+          sh """
+          ssh -o StrictHostKeyChecking=no $DOCKER_HOST '
+            docker pull $DOCKER_IMAGE &&
+            docker stop regapp || true &&
+            docker rm regapp || true &&
+            docker run -d --name regapp -p 8080:8080 $DOCKER_IMAGE
+          '
+          """
+        }
+      }
+    }
+  }
 }
