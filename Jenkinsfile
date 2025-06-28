@@ -8,7 +8,7 @@ pipeline {
 
   environment {
     DOCKER_IMAGE = "chandanald274/regapp"
-    DOCKER_HOST = "ec2-user@52.11.221.148"
+    DOCKER_HOST = "ec2-user@35.88.148.178"
   }
 
   stages {
