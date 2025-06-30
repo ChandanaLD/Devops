@@ -2,7 +2,7 @@
 <html>
 <head><title>Register</title></head>
 <body>
-  <h1>New user Register for DevOps </h1>
+  <h1>New user Register for DevOps Learn </h1>
   <form action="register" method="post">
     Enter Name: <input name="name" /><br/>
     Enter Email: <input name="email" /><br/>
